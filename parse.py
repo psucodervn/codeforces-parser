@@ -15,6 +15,8 @@ from sys import argv
 from subprocess import call
 from functools import partial, wraps
 
+import pprint
+import json
 import re
 import argparse
 import platform
@@ -242,28 +244,33 @@ def main():
     contest = args.contest
     contest_type = args.type
     language = args.language
+    
+    m = re.match(r"(\d+)([A-Za-z]*)", contest)
+    contest_id = m.group(1)
+    problem_ids = list(m.group(2))
 
     # Find contest and problems.
-    print ('Parsing contest %s (%s) for language %s, please wait...' % (contest, contest_type, language))
-    content = parse_contest(contest, contest_type)
-    print content
+    print ('Parsing contest %s (%s) for language %s, please wait...' % (contest_id, contest_type, language))
+    content = parse_contest(contest_id, contest_type)
+    map_names = dict(zip(content.problems, content.problem_names))
+    if (problem_ids.__len__() > 0):
+        content.problems = list(set(problem_ids).intersection(content.problems))
     print (BOLD+GREEN_F+'*** Round name: '+content.name+' ***'+NORM)
     print ('Found %d problems!' % (len(content.problems)))
-
+    
     # Find problems and test cases.
     TEMPLATE = language_params[language]["TEMPLATE"]
     for index, problem in enumerate(content.problems):
-        print ('Downloading Problem %s: %s...' % (problem, content.problem_names[index]))
-        folder = '%s-%s/%s/' % (contest, language, problem)
+        print ('Downloading Problem %s: %s...' % (problem, map_names[problem]))
+        folder = '%s-%s/%s/' % (contest_id, language, problem)
         call(['mkdir', '-p', folder])
         call(['cp', '-n', TEMPLATE, '%s/%s.%s' % (folder, problem, TEMPLATE.split('.')[1])])
-        num_tests = parse_problem(folder, contest, problem, contest_type)
+        num_tests = parse_problem(folder, contest_id, problem, contest_type)
         print('%d sample test(s) found.' % num_tests)
         generate_test_script(folder, language, num_tests, problem)
         print ('========================================')
 
     print ('Use ./test.sh to run sample tests in each directory.')
-
 
 if __name__ == '__main__':
     main()
