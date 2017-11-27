@@ -59,6 +59,9 @@ else:
     TIME_CMD='`which time` -o time.out -f "(%es)"'
 TIME_AP='`cat time.out`'
 
+NORMAL = 'normal'
+GYM    = 'gym'
+
 # Problems parser.
 class CodeforcesProblemParser(HTMLParser):
 
@@ -144,8 +147,11 @@ class CodeforcesContestParser(HTMLParser):
             self.problem_name += data
 
 # Parses each problem page.
-def parse_problem(folder, contest, problem):
-    url = 'http://codeforces.com/contest/%s/problem/%s' % (contest, problem)
+def parse_problem(folder, contest, problem, contest_type):
+    if contest_type == GYM:
+        url = 'http://codeforces.com/gym/%s/problem/%s' % (contest, problem)
+    else:
+        url = 'http://codeforces.com/contest/%s/problem/%s' % (contest, problem)
     html = urlopen(url).read()
     parser = CodeforcesProblemParser(folder)
     parser.feed(html.decode('utf-8'))
@@ -153,8 +159,11 @@ def parse_problem(folder, contest, problem):
     return parser.num_tests
 
 # Parses the contest page.
-def parse_contest(contest):
-    url = 'http://codeforces.com/contest/%s' % (contest)
+def parse_contest(contest, contest_type):
+    if contest_type == GYM:
+        url = 'http://codeforces.com/gym/%s' % (contest)
+    else:
+        url = 'http://codeforces.com/contest/%s' % (contest)
     html = urlopen(url).read()
     parser = CodeforcesContestParser(contest)
     parser.feed(html.decode('utf-8'))
@@ -224,16 +233,20 @@ def main():
     print (VERSION)
     parser = argparse.ArgumentParser()
     parser.add_argument('--language', '-l', default="c++14", help="The programming language you want to use "
-            "(c++14, go)")
+            "(c++14, go). Default is c++14")
+    parser.add_argument('--type', '-t', default="normal", help="Contest type (normal, gym)."
+            " Default is normal contest")
     parser.add_argument('contest', help="")
     args = parser.parse_args()
 
     contest = args.contest
+    contest_type = args.type
     language = args.language
 
     # Find contest and problems.
-    print ('Parsing contest %s for language %s, please wait...' % (contest, language))
-    content = parse_contest(contest)
+    print ('Parsing contest %s (%s) for language %s, please wait...' % (contest, contest_type, language))
+    content = parse_contest(contest, contest_type)
+    print content
     print (BOLD+GREEN_F+'*** Round name: '+content.name+' ***'+NORM)
     print ('Found %d problems!' % (len(content.problems)))
 
@@ -244,7 +257,7 @@ def main():
         folder = '%s-%s/%s/' % (contest, language, problem)
         call(['mkdir', '-p', folder])
         call(['cp', '-n', TEMPLATE, '%s/%s.%s' % (folder, problem, TEMPLATE.split('.')[1])])
-        num_tests = parse_problem(folder, contest, problem)
+        num_tests = parse_problem(folder, contest, problem, contest_type)
         print('%d sample test(s) found.' % num_tests)
         generate_test_script(folder, language, num_tests, problem)
         print ('========================================')
